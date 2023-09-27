@@ -1,0 +1,284 @@
+---
+title: Базовая информация по cypress-тестам
+sidebar_position: 1
+---
+
+Cypress является одним из основным средств для проведения e2e-тестирования.
+Если описывать вкратце, то в e2e-тестах проверяется взаимодействие приложения в целом, имитация поведения реального пользователя. Поскольку такие тесты могут быть объемны и трудозатратны для исполнения и написания, то их количество в проекте обычно ограничено. В связи с этим, надо стараться покрыть ключевые сценарии, такие как авторизация или какой-то важный функционал.
+
+## Перед началом
+
+- Установить необходимые пакеты в проект
+  ```bash
+  npm i cypress start-server-and-test dotenv -D
+  ```
+- Подготовить структуру файлов для тестов
+
+  ```
+  ├── src
+  │   ...
+  ├── cypress
+  │   ├── e2e
+  │   │   ├── app.cy.ts
+  │   ├── plugins
+  │   │   ├── index.js
+  │   ├── support
+  │   │   ├── commands.ts
+  │   │   ├── component-index.html
+  │   │   ├── component.ts
+  │   │   ├── e2e.ts
+  ├── cypress.config.ts
+  ```
+
+```tsx
+// cypress.config.ts
+
+import { ENGLISH_WORDS } from '@slonum/kit' //url модуля
+import { defineConfig } from 'cypress'
+require('dotenv').config()
+export default defineConfig({
+  e2e: {
+    // url запускаемого теста, фактически можно не указывать, поскольку он будет в команде запуска
+    baseUrl: ENGLISH_WORDS,
+    // на случай если понадобятся переменные из process.env, к ним можно будет получить доступ через Cypress.env('<var>')
+    setupNodeEvents(on, config) {
+      config.env = {
+        ...process.env,
+        ...config.env,
+      }
+      return config
+    },
+  },
+  // блокируем запросы на метрики и трекеры
+  blockHosts: ['www.googletagmanager.com', 'mc.yandex.ru', 'vk.com'],
+  component: {
+    devServer: {
+      framework: 'next',
+      bundler: 'webpack',
+    },
+  },
+  // отключаем cors. работает только для chromium-браузеров.
+  chromeWebSecurity: false,
+})
+```
+
+Кастомные команды для cy
+
+```tsx
+// cypress/support/commands.ts
+export {}
+```
+
+Корневой файл для тестирования компонентов
+
+```tsx
+// cypress/support/component-index.html
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Components App</title>
+    <!-- Used by Next.js to inject CSS. -->
+    <div id="__next_css__DO_NOT_USE__"></div>
+  </head>
+  <body>
+    <div data-cy-root></div>
+  </body>
+</html>
+```
+
+```tsx
+// cypress/support/component.ts
+
+import './commands'
+
+import { mount } from 'cypress/react18'
+declare global {
+  namespace Cypress {
+    interface Chainable {
+      mount: typeof mount
+    }
+  }
+}
+
+Cypress.Commands.add('mount', mount)
+```
+
+```tsx
+// cypress/support/e2e.ts
+
+import './commands'
+```
+
+```tsx
+// cypress/plugins/index.js (опционально)
+
+require('dotenv').config()
+import { DICTIONARY_WORDS } from '@slonum/kit'
+
+module.exports = (on, config) => {
+  config = process.env
+  config.baseUrl = DICTIONARY_WORDS
+  return config
+}
+```
+
+## Команды запуска
+
+В package.json добавляем следующие команды:
+
+```json
+ "scripts": {
+    //тестирование локально - порт указываем тот же, что и в команде dev
+    "e2e": "start-server-and-test dev / \"cypress open --e2e --config baseUrl=http://localhost:8081\"",
+    /*
+    Тестирование прода. Запуск производится в "тихом" режиме только после сборки
+    Для интерактивности можно заменить run на open. baseUrl - тестируемый url
+    Если тестируем локально, то команда такая:
+    */
+    "e2e:headless": "next build && start-server-and-test start / \"cypress run --e2e --config baseUrl=http://localhost:3000""
+    //если удаленный хост, то
+    "e2e:headless": "cypress run --e2e --config baseUrl=https://english.slonum.ru"
+}
+```
+
+## Основные команды
+
+- **cy.visit('url')** - переход по ссылке
+- **cy.get('selector')** - аналог querySelector, можно чейнить, в then можно получить этот элемент и использовать команды jQuery. Вторым параметром можно передать опции, например force: true, если элемент вне видимости
+- **cy.first()**, **cy.last()** - выбор первого\последнего элемента по селектору get. Нужно для кликов, если в опциях не указано multiple: true
+- **cy.click()** - имитация нажатия
+- **cy.type('value')** - имитация ввода. Есть интерполяция, но она кривовато работает - нужна для спец. клавиш таких как Enter - cy.type('{enter}'). Для Tab не работает, его нажатие сымитировать нельзя
+- **cy.window()** - получение объекта window - аналогичного с браузером
+- **cy.wait('time')** - задержка действия
+- **cy.should('assertion type', 'assertion value')** - проверка на соответствие каким-либо условиям
+
+## Основные тесты
+
+### Тестирование авторизации
+
+Поскольку ui у нас почти везде общий, я написал тест, который работает в большинстве проектов:
+
+- нажимается кнопка "Войти" в хедере
+- вводятся данные тестового аккаунта
+- нажимается кнопка "Войти"
+- делается проверка на наличие куки
+
+```tsx
+// cypress/e2e/app.cy.ts
+
+describe('check page loading', () => {
+  it('should login', () => {
+    cy.visit('/')
+    cy.get('div[class*="Header_auth__unlogged"] > button').click()
+    cy.get('input[name="email"]').last().type('testaccount@test.ru')
+    cy.get('input[name="password"]').last().type('password')
+    cy.get('button[class*="FormAuth_form__button"]').click().wait(1000)
+    cy.getCookie('access_token').should('exist')
+  })
+})
+```
+
+### Навигация по страницам
+
+Здесь просто проходим по страницам, убеждаемся, что они открываются без ошибок
+
+```tsx
+// cypress/e2e/app.cy.ts
+
+it('should render tops pages', () => {
+  cy.visit('/')
+  cy.visit('/top/100').wait(1000)
+  cy.visit('/top/300').wait(1000)
+  cy.visit('/top/500').wait(1000)
+  cy.visit('/top/1000').wait(1000)
+  cy.visit('/top/2000').wait(1000)
+  cy.visit('/top/3000').wait(1000)
+  cy.visit('/top/5000').wait(1000)
+  cy.visit('/top/10000')
+})
+```
+
+### Тестирование перехода по url
+
+Проверка соответствия текущего url тому, что должен быть. На примере английского - ищем первую книгу, переходим, проверяем, что в url есть "/books/"
+
+```tsx
+// cypress/e2e/app.cy.ts
+
+it('should navigate books', () => {
+  cy.visit('/')
+  cy.get('#books').scrollIntoView().wait(1000)
+  cy.get('h3[class*="CardOfBook_card__title"]').first().click().wait(2000)
+  cy.url().should('match', /\/books\/\w+/gi)
+})
+```
+
+На примере блога - аналогично поступаем с первой статьей
+
+```tsx
+// cypress/e2e/app.cy.ts
+
+it('opens main page, navigates to blog post, navigates to topic page', () => {
+  cy.visit('/')
+  cy.window().scrollTo(0, 300)
+  let linkUrl: string
+  cy.get('div[class*="ArticleCard_card__top"] > a')
+    .should('exist')
+    .first()
+    .invoke('attr', 'href')
+    .then(href => {
+      linkUrl = href
+      cy.visit(linkUrl)
+      cy.url().should('include', linkUrl).wait(2000)
+
+      cy.get('h1').should(title => {
+        linkUrl.includes(transliterate(title.text()))
+      })
+      cy.get('a[class*="breadcrumbs"]').click().wait(2000)
+      cy.get('h2').should(title => {
+        linkUrl.includes(transliterate(title.text()))
+      })
+    })
+})
+```
+
+### Проверка тренажера
+
+Пример на словарных словах: переходим в тренажер, прокликиваем до конца, убеждаемся, что есть привычный экран окончания тренажера
+
+```tsx
+// cypress/e2e/app.cy.ts
+
+it('class 1', () => {
+  cy.then(() => {
+    cy.visit('/1-class').wait(500)
+    cy.get('[class*="Typography_title__h3--lg"]').then(el => {
+      const wordsCount = +el.text().match(/\d+/g)[0]
+      cy.get('#train > div[class*="GradeFilter_gradeFilter"] > button').click({
+        force: true,
+      })
+      cy.wait(2000)
+      cy.window().scrollTo(0, 300).wait(200)
+
+      clickButtonsInSuccession()
+
+      function clickButtonsInSuccession(i = 1) {
+        if (i <= wordsCount - 2) {
+          const button1Selector =
+            'div[class*="TrainerMenu_menu"] > div > button:nth-child(1)'
+          cy.get(button1Selector).click({ force: true })
+          const button2Selector =
+            'div[class*="TrainerMenu_menu"] > div > button[class*="Button_button__main"]'
+          cy.get(button2Selector).click({ force: true })
+          clickButtonsInSuccession(i + 1)
+        }
+      }
+      cy.get('[class*="PopupFeedback_feedback__title"]').should('exist')
+    })
+  })
+})
+```

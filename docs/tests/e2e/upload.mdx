@@ -1,0 +1,36 @@
+---
+title: Загрузка файлов
+sidebar_position: 2
+---
+
+Для загрузки файлов в cypress нам необходима библиотека [cypress-file-upload](https://www.npmjs.com/package/cypress-file-upload)
+
+```bash
+npm install --save-dev cypress-file-upload
+```
+
+Импортируем
+
+```ts
+// cypress/support/commands.ts
+
+import 'cypress-file-upload'
+```
+
+## Пример
+
+```ts
+// cypress/e2e/app.cy.ts
+
+cy.get('input[type="file"]').last().attachFile('draw.jpeg')
+```
+
+cypress берёт файлы из папки `cypress/fixtures`
+
+Можем использовать относительный путь
+
+```ts
+// cypress/e2e/app.cy.ts
+
+cy.get('input[type="file"]').last().attachFile('../files/draw.jpeg')
+```

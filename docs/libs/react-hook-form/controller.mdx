@@ -1,0 +1,30 @@
+---
+title: Controlled инпут
+sidebar_position: 2
+---
+
+## Как быть, когда мне нужен controlled инпут?
+
+В **react-hook-form** для таких таких случаев есть компонент `<Controller />`
+
+```tsx
+import { Controller, useForm } from 'react-hook-form'
+
+interface IForm {
+  comment: string
+}
+
+export const SendComment = () => {
+  const { control } = useForm<IForm>()
+
+  return (
+    <div>
+      <Controller
+        control={control}
+        name='comment'
+        render={({ field }) => <TextArea {...field} />}
+      />
+    </div>
+  )
+}
+```

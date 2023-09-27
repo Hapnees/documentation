@@ -1,0 +1,95 @@
+---
+title: Значения полей формы
+sidebar_position: 3
+---
+
+## Что делать, когда мне нужны значения из формы вне функции отправки?
+
+На этот случай в хуке **useForm** есть две функции: `getValues` и `watch`
+
+### getValues
+
+Допустим, нам нужно использовать значение поля в какой-то функции. Например, при клике. Для таких нужд нам подойдёт функция `getValues`
+
+```tsx
+interface IForm {
+  comment: string
+}
+
+export const SendComment = () => {
+  const { register, getValues } = useForm<IForm>()
+
+  const onClickSomeButton = () => {
+    console.log(getValues('comment'))
+  }
+
+  return (
+    <div>
+      <textarea {...register('comment')} />
+      <button onClick={onClickSomeButton}></button>
+    </div>
+  )
+}
+```
+
+<br />
+
+### watch
+
+Допустим, нам нужно следить за изменением значения поля. Для таких нужд нам подойдёт функция `watch`
+
+```tsx
+interface IForm {
+  comment: string
+}
+export const SendComment = () => {
+  const { register, watch } = useForm<IForm>()
+  const commentValue = watch('comment')
+
+  useEffect(() => {
+    console.log(commentValue)
+  }, [commentValue])
+
+  return (
+    <div>
+      <textarea {...register('comment')} />
+    </div>
+  )
+}
+```
+
+<br />
+
+### В чём отличие watch и getValues?
+
+Функция `watch` подписывается на изменение поля и вызывает ререндер при каждом
+изменении его значения
+
+Функция `getValues` - наоборот, не подписывается на изменение и не вызывает ререндер
+
+<br />
+
+## Как изменить значения поля извне?
+
+Для этого в `useForm` есть функция `setValue`
+
+```tsx
+interface IForm {
+  comment: string
+}
+
+export const SendComment = () => {
+  const { register, setValue } = useForm<IForm>()
+
+  const onClickSomeButton = () => {
+    setValue('comment', 'My special comment')
+  }
+
+  return (
+    <div>
+      <textarea {...register('comment')} />
+      <button onClick={onClickSomeButton}>Click me</button>
+    </div>
+  )
+}
+```

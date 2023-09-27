@@ -14,7 +14,7 @@ export const uiLayerRules: ComponentProps<typeof TermList>['items'] = [
       title: 'entities',
       color: 'yellow',
     },
-    desc: 'бизнес-сущность',
+    desc: 'бизнес-сущность, объект из реального мира',
   },
   {
     mark: {

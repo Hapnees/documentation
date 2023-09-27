@@ -1,0 +1,48 @@
+---
+title: Глубокая форма
+sidebar_position: 4
+---
+
+## Что делать, когда значения из формы нужны в родительском компоненте?
+
+Для этого в **react-hook-form** есть компонент `<FormProvider>`
+
+Оборачиваем компонент в `<FormProvder>`
+
+```tsx
+import { FormProvider, useForm } from 'react-hook-form'
+import { IFormComment, NestedComponent } from './NestedComponent'
+
+export const SendComment = () => {
+  const formMethods = useForm<IFormComment>()
+  const { getValues } = formMethods
+
+  const onClickSomeButton = () => {
+    console.log(getValues('comment'))
+  }
+
+  return (
+    <div>
+      <FormProvider {...formMethods}>
+        <NestedComponent />
+      </FormProvider>
+      <button onClick={onClickSomeButton}>Click me</button>
+    </div>
+  )
+}
+```
+
+Теперь в `<NestedComponent />` вызовем хук `useFormContext` и пользуемся им также как и `useForm`
+
+```tsx
+import { useFormContext } from 'react-hook-form'
+
+export interface IFormComment {
+  comment: string
+}
+
+export const NestedComponent = () => {
+  const { register } = useFormContext<IFormComment>()
+  return <textarea {...register('comment')} />
+}
+```

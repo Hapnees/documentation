@@ -1,0 +1,128 @@
+---
+title: Обзор
+sidebar_position: 1
+---
+
+В наших проектах мы используем стейт-менеджер **redux**, а точнее [@reduxjs/toolkit](https://redux-toolkit.js.org/)
+
+Для работы с асинхронщиной в редаксе используем [redux-thunk](https://github.com/reduxjs/redux-thunk)
+
+Для сохранения данных в браузерное хранилище + синхронизацию с редаксом - [redux-persist](https://github.com/rt2zz/redux-persist)
+
+Для redux-хуков - [react-redux](https://react-redux.js.org/)
+
+Установим пакеты
+
+```bash
+npm install @reduxjs/toolkit redux-thunk redux-persist react-redux
+```
+
+## rootReducer
+
+Для начала создадим `rootReducer`, в который будем добавлять наши редьюсеры
+
+```ts
+// lib/app/model/rootReducer.ts
+
+export const rootReducer = combineReducers({})
+```
+
+## persistConfig
+
+Напишем `persistConfig` - конфиг для **redux-persist**
+
+```ts
+// lib/app/model/rootReducer.ts
+
+import { combineReducers } from '@reduxjs/toolkit'
+import { persistReducer } from 'redux-persist'
+import storage from 'redux-persist/lib/storage'
+
+const rootReducer = combineReducers({})
+
+const persistConfig = {
+  key: 'root',
+  storage,
+  version: 1,
+  whitelist: [],
+}
+
+export const persistedReducer = persistReducer(persistConfig, rootReducer)
+```
+
+Будем сохранять некоторые слайсы в **localStorage**. В **whitelist** будем добавлять названия этих слайсов
+
+Экспортируем `persistedReducer` - он нам пригодится, когда будем создавать **store**
+
+## store
+
+Рядышком создадим файл `store.ts`. В нём создадим **стор**. Пропишем в него **persistReducer**. Экспортируем типы, которые понадобятся для написания хуков
+
+```ts
+// lib/app/model/store.ts
+
+import { AnyAction, ThunkDispatch, configureStore } from '@reduxjs/toolkit'
+import { persistedReducer } from './rootReducer'
+import { persistStore } from 'redux-persist'
+import { Dispatch } from 'react'
+
+const makeStore = () => {
+  return configureStore({
+    reducer: persistedReducer,
+    middleware: gDM => gDM({ thunk: true, serializableCheck: false }),
+  })
+}
+
+const store = makeStore()
+
+export type RootState = ReturnType<typeof store.getState>
+export type AppDispatch = Dispatch<AnyAction> &
+  ThunkDispatch<RootState, null, AnyAction>
+
+export const persistor = persistStore(store)
+```
+
+## Подключаем редакс к приложению
+
+А теперь подключим всё выше написанное к приложению
+
+```tsx
+// pages/_app.tsx
+
+import type { AppProps } from 'next/app'
+import { Provider } from 'react-redux'
+import { persistor, wrapper, store } from '@/lib/app/model/store'
+import { PersistGate } from 'redux-persist/integration/react'
+
+function App({ Component, pageProps }: AppProps) {
+  return (
+    <Provider store={store}>
+      <PersistGate persistor={persistor}>
+        <div id='root'>
+          <Component {...pageProps} />
+        </div>
+      </PersistGate>
+    </Provider>
+  )
+}
+
+export default App
+```
+
+## redux-hooks
+
+Напишем несколько хуков для удобной работы с редаксом
+
+```ts
+// lib/shared/hooks/redux-hooks.ts
+
+import { AppDispatch, RootState } from '@/lib/app/model/store'
+import { ActionCreatorsMapObject, bindActionCreators } from '@reduxjs/toolkit'
+import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux'
+
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector
+export const useAppDispatch = () => useDispatch<AppDispatch>()
+```
+
+- `useAppSelector` - для получения данных из стора
+- `useAppDispatch` - типизированный диспатч
