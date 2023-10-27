@@ -12,6 +12,12 @@ const sidebars = {
   ],
   reduxId: ['libs/redux/review'],
   e2eId: ['tests/e2e/review', 'tests/e2e/upload'],
+  modulesId: [
+    'modules/vocabulary/review',
+    'modules/vocabulary/trainer_review',
+    'modules/vocabulary/trainer_code',
+    'modules/vocabulary/trainer_functions',
+  ],
 }
 
 module.exports = sidebars

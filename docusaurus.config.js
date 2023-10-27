@@ -88,6 +88,18 @@ const config = {
             label: 'Тесты',
             items: [{ label: 'e2e', type: 'docSidebar', sidebarId: 'e2eId' }],
           },
+          {
+            type: 'dropdown',
+            position: 'left',
+            label: 'Модули',
+            items: [
+              {
+                label: 'Словарные слова',
+                type: 'docSidebar',
+                sidebarId: 'modulesId',
+              },
+            ],
+          },
         ],
       },
       prism: {
